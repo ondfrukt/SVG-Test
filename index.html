@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ditt Draw.io-diagram</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            background-color: #f0f0f0;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+        #diagram-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        object {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="diagram-container">
+        <object id="diagram" type="image/svg+xml" data="ditt-diagram.svg"></object>
+    </div>
+
+    <!-- Panzoom-biblioteket -->
+    <script src="https://unpkg.com/@panzoom/panzoom@9.4.0/dist/panzoom.min.js"></script>
+
+    <script>
+        const el = document.getElementById('diagram');
+        el.addEventListener('load', () => {
+            const svgDoc = el.contentDocument.querySelector('svg');
+            if (!svgDoc) {
+                console.error('SVG-dokumentet kunde inte laddas.');
+                return;
+            }
+            const panzoom = Panzoom(svgDoc, {
+                maxScale: 10,
+                minScale: 0.1,
+                contain: 'outside'
+            });
+            svgDoc.parentElement.addEventListener('wheel', panzoom.zoomWithWheel);
+
+            // Zooma in/ut med knappar (valfritt)
+            const zoomIn = () => panzoom.zoomIn();
+            const zoomOut = () => panzoom.zoomOut();
+
+            // Lägg till knappar om du vill:
+            const controls = document.createElement('div');
+            controls.innerHTML = `
+                <button onclick="(${zoomIn.toString()})()">Zooma in</button>
+                <button onclick="(${zoomOut.toString()})()">Zooma ut</button>
+            `;
+            controls.style.position = 'absolute';
+            controls.style.top = '10px';
+            controls.style.left = '10px';
+            controls.style.zIndex = '100';
+            controls.style.background = '#fff';
+            controls.style.padding = '5px';
+            controls.style.borderRadius = '4px';
+            document.body.appendChild(controls);
+        });
+    </script>
+</body>
+</html>
