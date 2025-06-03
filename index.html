@@ -3,94 +3,71 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ditt Draw.io-diagram</title>
+  <title>Interaktivt Draw.io-diagram</title>
   <style>
     html, body {
       margin: 0;
       padding: 0;
       height: 100%;
       width: 100%;
-      overflow: hidden;
       background-color: #f0f0f0;
+      overflow: hidden;
     }
     #diagram-container {
       width: 100%;
       height: 100%;
-      position: relative;
     }
-    #svg-holder {
+    svg {
       width: 100%;
       height: 100%;
-      overflow: hidden;
+      touch-action: none;
     }
-    #svg-holder svg {
-      width: 100%;
-      height: 100%;
-      display: block;
-      touch-action: none; /* Viktigt för Panzoom */
+    .dimmed * {
+      opacity: 0.2;
+      transition: opacity 0.3s ease;
     }
-    .zoom-controls {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      z-index: 100;
-      background: rgba(255, 255, 255, 0.9);
-      padding: 5px;
-      border-radius: 4px;
-      box-shadow: 0 0 5px rgba(0,0,0,0.3);
-    }
-    .zoom-controls button {
-      margin: 2px;
-      padding: 5px 10px;
-      font-size: 14px;
-      cursor: pointer;
+    .highlight {
+      opacity: 1 !important;
     }
   </style>
 </head>
 <body>
   <div id="diagram-container">
     <div id="svg-holder"></div>
-    <div class="zoom-controls">
-      <button id="zoom-in">Zooma in</button>
-      <button id="zoom-out">Zooma ut</button>
-      <button id="reset">Återställ</button>
-    </div>
   </div>
 
-  <script src="https://unpkg.com/@panzoom/panzoom@9.4.0/dist/panzoom.min.js"></script>
   <script>
+    // Ladda in SVG-filen
     fetch('ditt-diagram.svg')
       .then(response => response.text())
       .then(svgText => {
-        const svgHolder = document.getElementById('svg-holder');
-        svgHolder.innerHTML = svgText;
+        const container = document.getElementById('svg-holder');
+        container.innerHTML = svgText;
 
-        const svg = svgHolder.querySelector('svg');
-        if (!svg) {
-          console.error('SVG kunde inte hittas.');
-          return;
+        const svg = container.querySelector('svg');
+
+        // Kontroll: se till att viewBox finns
+        if (!svg.hasAttribute('viewBox')) {
+          const width = svg.getAttribute('width') || 1000;
+          const height = svg.getAttribute('height') || 800;
+          svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
         }
 
-        // Panzoom styr själva SVG-elementet
-        const panzoom = Panzoom(svg, {
-          maxScale: 10,
-          minScale: 0.2,
-          contain: 'outside'
+        // Klickhantering
+        svg.addEventListener('click', (e) => {
+          const targetGroup = e.target.closest('g');
+          if (targetGroup) {
+            svg.classList.add('dimmed');
+            svg.querySelectorAll('.highlight').forEach(el => el.classList.remove('highlight'));
+            targetGroup.classList.add('highlight');
+          } else {
+            svg.classList.remove('dimmed');
+            svg.querySelectorAll('.highlight').forEach(el => el.classList.remove('highlight'));
+          }
         });
-
-        // Förhindra sid-scroll
-        svg.addEventListener('wheel', (event) => {
-          event.preventDefault();
-          panzoom.zoomWithWheel(event);
-        });
-
-        // Knapparna
-        document.getElementById('zoom-in').addEventListener('click', () => panzoom.zoomIn());
-        document.getElementById('zoom-out').addEventListener('click', () => panzoom.zoomOut());
-        document.getElementById('reset').addEventListener('click', () => panzoom.reset());
       })
       .catch(error => {
-        console.error('Kunde inte ladda SVG-filen:', error);
+        console.error('Kunde inte ladda SVG:', error);
       });
   </script>
 </body>
