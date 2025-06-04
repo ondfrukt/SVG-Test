@@ -1,50 +1,139 @@
 <!DOCTYPE html>
 <html lang="sv">
 <head>
-  <meta charset="UTF-8" />
-  <title>SVG Zoom</title>
+  <meta charset="UTF-8">
+  <title>SVG-Test – Komplett Exempel</title>
   <style>
-    #svg-container {
-      width: 100%;
-      height: 100vh;
-      overflow: hidden;
-      border: 1px solid #ccc;
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
     }
-    svg {
-      width: 100%;
-      height: 100%;
-      touch-action: none; /* För att zooma med touch */
+    h1 {
+      margin-bottom: 10px;
+    }
+    section {
+      margin-bottom: 40px;
+    }
+    /* ---------- 1. Styling för Inline SVG ---------- */
+    #inline-svg circle {
+      fill: lightblue;
+      stroke: navy;
+      stroke-width: 2;
+      transition: fill 0.3s;
+    }
+    #inline-svg circle:hover {
+      fill: orange;
+    }
+    #inline-svg rect {
+      fill: lightgreen;
+      stroke: darkgreen;
+      stroke-width: 2;
+      transition: transform 0.3s;
+    }
+    #inline-svg rect:hover {
+      transform: scale(1.1);
+    }
+
+    /* ---------- 2. Styling för SVG via <img> (kan inte styla elementen inuti) ---------- */
+    /* Inga element-specifika regler här, för <img> fungerar som en svart låda */
+
+    /* ---------- 3. Styling eller varning för <object>-SVG ---------- */
+    /* Om du vill kan du skriva CSS som påverkar SVG-objektet via #object-container.
+       Dock krävs oftast JavaScript för att komma åt enskilda element inuti <object>. */
+    #object-container {
+      border: 2px dashed #666;
+      display: inline-block;
     }
   </style>
 </head>
 <body>
-  <div id="svg-container">
-    <!-- SVG:n laddas in här -->
-    <object id="svg-object" type="image/svg+xml" data="ditt-diagram.svg"></object>
-  </div>
+  
+  <h1>SVG-Test – Komplett Exempel</h1>
+  <p>Det här är ett test som visar tre olika sätt att bädda in och interagera med <code>diagram.svg</code>.</p>
+  
+  <!-- ========== 1. Inline SVG ========== -->
+  <section>
+    <h2>1. Inbäddad (inline) SVG</h2>
+    <div id="inline-svg">
+      <!-- Hela SVG-koden klistras in direkt i HTML -->
+      <svg xmlns="http://www.w3.org/2000/svg"
+           viewBox="0 0 300 150"
+           width="300" height="150">
+        <circle id="c1" cx="75" cy="75" r="50"
+                fill="#3399ff" stroke="#003366" stroke-width="3" />
+        <rect id="r2" x="150" y="35" width="100" height="80"
+              fill="green" stroke="#006600" stroke-width="3" />
+        <text x="20" y="145" font-family="sans-serif"
+              font-size="14px" fill="#333">
+          Exempel på en SVG-grafik
+        </text>
+      </svg>
+    </div>
+    <p><small>Här kan du styla och manipulera varje element direkt med CSS/JS.</small></p>
+  </section>
+  
+  <!-- ========== 2. SVG via <img> ========== -->
+  <section>
+    <h2>2. SVG via &lt;img&gt;</h2>
+    <!-- Enkel referens till diagram.svg -->
+    <img id="img1" src="diagram.svg" alt="Diagram från SVG-fil"
+         width="300" height="150">
+    <p><small>Fungerar som en vanlig bild, men du kan inte nå in i element med CSS/JS.</small></p>
+  </section>
+  
+  <!-- ========== 3. SVG via <object> ========== -->
+  <section>
+    <h2>3. SVG via &lt;object&gt;</h2>
+    <div id="object-container">
+      <object id="svg-object" type="image/svg+xml"
+              data="diagram.svg" width="300" height="150">
+        Din webbläsare stödjer tyvärr inte SVG.
+      </object>
+    </div>
+    <p><small>Med <code>&lt;object&gt;</code> kan du via JavaScript komma åt <code>contentDocument</code> för att manipulera enskilda element.</small></p>
+  </section>
 
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const obj = document.getElementById("svg-object");
-
-    obj.addEventListener("load", () => {
-      const svgDoc = obj.contentDocument;
-      const svgElement = svgDoc.querySelector("svg");
-
-      if (svgElement) {
-        const panzoom = Panzoom(svgElement, {
-          maxScale: 10,
-          minScale: 0.5,
+  <!-- ========== JavaScript för interaktion ========== -->
+  <script>
+    // ---------- Hantera <object>-SVG när den är laddad ----------
+    document.getElementById('svg-object').addEventListener('load', function() {
+      const svgDoc = this.contentDocument;
+      if (!svgDoc) {
+        console.warn('Kunde inte nå contentDocument. Kontrollera webbläsarstöd och same-origin-policy.');
+        return;
+      }
+      // Exempel: ändra färg på cirkel (id="c1") inuti SVG-filen:
+      const cirkel = svgDoc.getElementById('c1');
+      if (cirkel) {
+        cirkel.setAttribute('fill', '#ff6666');
+      }
+      // Exempel: lägg till hover-effekt på rektangel (id="r2"):
+      const rect = svgDoc.getElementById('r2');
+      if (rect) {
+        rect.addEventListener('mouseover', function() {
+          rect.setAttribute('fill', '#ffff66');
         });
-
-        // Scrollhjulet måste kopplas till zoomWithWheel
-        svgDoc.addEventListener("wheel", (event) => {
-          event.preventDefault();
-          panzoom.zoomWithWheel(event);
-        }, { passive: false });
+        rect.addEventListener('mouseout', function() {
+          rect.setAttribute('fill', 'green');
+        });
       }
     });
-  });
-</script>
+
+    // ---------- Kontrollera om <img>-SVG laddas korrekt ----------
+    document.getElementById('img1').addEventListener('error', function() {
+      console.error('Misslyckades med att ladda diagram.svg via <img>. Kontrollera sökväg & MIME-typ.');
+    });
+
+    // ---------- Demonstrera enkel interaktion för Inline SVG ----------
+    // Ändra opacitet när man klickar på cirkeln i inline-SVG:
+    const inlineCirkel = document.querySelector('#inline-svg #c1');
+    if (inlineCirkel) {
+      inlineCirkel.addEventListener('click', function() {
+        // Växla opacitet mellan 1 och 0.5
+        const nuvarande = inlineCirkel.getAttribute('opacity') || '1';
+        inlineCirkel.setAttribute('opacity', nuvarande === '1' ? '0.5' : '1');
+      });
+    }
+  </script>
 </body>
 </html>
