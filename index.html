@@ -2,7 +2,7 @@
 <html lang="sv">
 <head>
   <meta charset="UTF-8">
-  <title>SVG‐Zoom‐Exempel</title>
+  <title>SVG‐Zoom‐Exempel (med större ruta och mus‐scroll‐zoom)</title>
   <style>
     /* Grundläggande styling för layout */
     body {
@@ -32,20 +32,20 @@
     button:hover {
       background-color: #ddd;
     }
+
+    /* ---------- Uppdaterad: Större SVG‐container ---------- */
     #svg-container {
-      /* En ram runt SVG:en */
       border: 1px solid #ccc;
-      width: 420px;  /* något större än 400 för att visa ram */
-      height: 320px; /* något större än 300 för att visa ram */
-      overflow: hidden; /* döljer allt utanför behållarens storlek */
+      width: 800px;   /* gör rutan bredare */
+      height: 600px;  /* gör rutan högre */
+      overflow: hidden; /* döljer allt utanför ramen */
       display: flex;
       justify-content: center;
       align-items: center;
       background-color: white;
     }
-    /* Om du vill centrera SVG:n i behållaren: */
+    /* Eftersom vi zoomar via viewBox räcker det att låta SVG:n skala inom sin container */
     #svg-container svg {
-      /* När vi skalar via viewBox så ritas SVG:en ändå. */
       max-width: 100%;
       max-height: 100%;
     }
@@ -54,25 +54,27 @@
 <body>
 
   <h1>SVG‐Zoom‐Exempel</h1>
-  <p>Diagrammet är en extern fil (<code>diagram.svg</code>) som laddas in “inline” i HTML. 
-     Du kan ändra denna fil utan att röra i <code>index.html</code>. 
-     Zooma med knapparna nedan.</p>
+  <p>
+    Diagrammet hämtas som en extern fil (<code>diagram.svg</code>) och infogas “inline” i HTML.
+    Du kan redigera <code>diagram.svg</code> utan att ändra HTML‐koden. Zooma med knapparna eller
+    använd mushjulet när muspekaren är över diagrammet.
+  </p>
 
-  <!-- ---------- Zoom‐kontroller ---------- -->
+  <!-- ---------- Zoom‐knappar ---------- -->
   <div id="controls">
     <button id="zoom‐in">Zooma In (+)</button>
     <button id="zoom‐out">Zooma Ut (−)</button>
     <button id="reset">Återställ Zoom</button>
   </div>
 
-  <!-- ---------- Behållare för SVG:n ---------- -->
+  <!-- ---------- Större behållare för SVG:n ---------- -->
   <div id="svg-container">
-    <!-- Här kommer SVG koden att infogas av JavaScript -->
+    <!-- Här infogas SVG‐koden av JavaScript -->
   </div>
 
-  <!-- ---------- JavaScript för att ladda in och hantera SVG & Zoom ---------- -->
+  <!-- ---------- JavaScript för inläsning och zoom ---------- -->
   <script>
-    // ---------- 1. Funktion som läser in diagram.svg och placerar "inline" ----------
+    // ---------- Funktion för att ladda in SVG “inline” ----------
     async function loadSVGInline(url, containerId) {
       try {
         const response = await fetch(url);
@@ -80,11 +82,9 @@
           throw new Error('Kunde inte hämta SVG: ' + response.status + ' ' + response.statusText);
         }
         const svgText = await response.text();
-        // Placera SVG‐koden direkt i behållar‐elementet.
+        // Sätt SVG‐texten som innerHTML i container‐div:en
         document.getElementById(containerId).innerHTML = svgText;
-
-        // Returnera den infogade <svg>-element‐nod: 
-        // (vi antar att det första barn‐elementet i div är <svg>)
+        // Returnera referensen till det nya <svg>-elementet
         const svgElement = document.getElementById(containerId).querySelector('svg');
         if (!svgElement) {
           console.warn('Ingen <svg> hittades i det infogade innehållet.');
@@ -96,32 +96,26 @@
       }
     }
 
-    // ---------- 2. Funktioner för zoomning via viewBox ----------
+    // ---------- Hjälpfunktioner för viewBox och zoom ----------
     function parseViewBox(svgEl) {
-      // Läser viewBox‐attributet och returnerar [x, y, width, height] som tal.
       const vb = svgEl.getAttribute('viewBox');
-      // Om inget viewBox anges, kan vi här sätta ett default‐värde baserat på bbox (men i detta exempel antar vi att viewBox finns).
       if (!vb) {
         console.warn('SVG saknar viewBox. Kan ej zooma korrekt.');
         return null;
       }
-      return vb.split(/\s+|,/).map(Number);
+      return vb.trim().split(/\s+|,/).map(Number);
     }
 
     function setViewBox(svgEl, vbArray) {
-      // sätter viewBox‐värdet med givna koordinater (array av 4 tal).
       svgEl.setAttribute('viewBox', vbArray.join(' '));
     }
 
     function zoom(svgEl, faktor) {
-      // faktor > 1 → zoom in, faktor < 1 → zoom out
       const vb = parseViewBox(svgEl);
       if (!vb) return;
       let [x, y, w, h] = vb;
-      // Beräkna nya width/height och justera x/y så att vi behåller centrum:
       const nyaW = w / faktor;
       const nyaH = h / faktor;
-      // Centrera: 
       const mittX = x + w / 2;
       const mittY = y + h / 2;
       const nyaX = mittX - nyaW / 2;
@@ -133,39 +127,46 @@
       setViewBox(svgEl, ursprungligViewBox);
     }
 
-    // ---------- 3. Huvudlogik: Körs när sidan är laddad ----------
+    // ---------- Körs när hela DOM är laddad ----------
     window.addEventListener('DOMContentLoaded', async () => {
-      const svgUrl = 'diagram.svg';       // Din externa SVG-fil
-      const containerId = 'svg-container'; // ID för div där vi vill infoga
+      const svgUrl = 'diagram.svg';       // Filnamnet på din SVG
+      const containerId = 'svg-container';
 
-      // 3.1 Ladda in SVG “inline” och få referens till <svg>-elementet
+      // 1. Ladda in SVG “inline”
       const svgEl = await loadSVGInline(svgUrl, containerId);
       if (!svgEl) {
         console.error('Misslyckades med att ladda SVG.');
         return;
       }
 
-      // 3.2 Läs av ursprungliga viewBox‐värden för att kunna återställa senare
+      // 2. Spara ursprungligt viewBox för återställning
       const ursprungligViewBox = parseViewBox(svgEl);
       if (!ursprungligViewBox) {
         console.error('Inget viewBox funnet; kan ej återställa zoom.');
       }
 
-      // 3.3 Koppla zoom‐knapparna
+      // 3. Koppla klick på zoom‐knappar
       document.getElementById('zoom‐in').addEventListener('click', () => {
-        // Zooma in med faktor 1.2 (20% in)
-        zoom(svgEl, 1.2);
+        zoom(svgEl, 1.2); // zooma in med 20%
       });
-
       document.getElementById('zoom‐out').addEventListener('click', () => {
-        // Zooma ut med faktor 0.8 (20% ut)
-        zoom(svgEl, 0.8);
+        zoom(svgEl, 0.8); // zooma ut med 20%
       });
-
       document.getElementById('reset').addEventListener('click', () => {
-        // Återställ till ursprunglig viewBox
         if (ursprungligViewBox) {
           resetZoom(svgEl, ursprungligViewBox);
+        }
+      });
+
+      // 4. Aktivera mushjul‐zoom när musen är över container
+      const container = document.getElementById(containerId);
+      container.addEventListener('wheel', function(e) {
+        e.preventDefault(); // förhindra att sidan scrollar
+        // Om deltaY < 0 → scroll upp (zooma in), deltaY > 0 → scroll ned (zooma ut)
+        if (e.deltaY < 0) {
+          zoom(svgEl, 1.1);  // något mindre faktor för mjukare känsla
+        } else {
+          zoom(svgEl, 0.9);
         }
       });
     });
