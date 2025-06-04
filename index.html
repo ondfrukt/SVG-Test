@@ -23,31 +23,28 @@
     <object id="svg-object" type="image/svg+xml" data="ditt-diagram.svg"></object>
   </div>
 
-  <script src="https://unpkg.com/@panzoom/panzoom@9.4.0/dist/panzoom.min.js"></script>
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const obj = document.getElementById("svg-object");
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const obj = document.getElementById("svg-object");
 
-      obj.addEventListener("load", () => {
-        const svgDoc = obj.contentDocument;
-        const svgElement = svgDoc.querySelector("svg");
+    obj.addEventListener("load", () => {
+      const svgDoc = obj.contentDocument;
+      const svgElement = svgDoc.querySelector("svg");
 
-        if (svgElement) {
-          const panzoom = Panzoom(svgElement, {
-            maxScale: 10,
-            minScale: 0.5,
-            contain: "outside",
-            smoothScroll: false,
-          });
+      if (svgElement) {
+        const panzoom = Panzoom(svgElement, {
+          maxScale: 10,
+          minScale: 0.5,
+        });
 
-          // Lägg till musens scroll för zoom
-          svgElement.parentElement.addEventListener("wheel", (event) => {
-            event.preventDefault();
-            svgElement.dispatchEvent(new WheelEvent("wheel", event));
-          });
-        }
-      });
+        // Scrollhjulet måste kopplas till zoomWithWheel
+        svgDoc.addEventListener("wheel", (event) => {
+          event.preventDefault();
+          panzoom.zoomWithWheel(event);
+        }, { passive: false });
+      }
     });
-  </script>
+  });
+</script>
 </body>
 </html>
