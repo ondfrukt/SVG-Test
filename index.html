@@ -2,138 +2,174 @@
 <html lang="sv">
 <head>
   <meta charset="UTF-8">
-  <title>SVG-Test – Komplett Exempel</title>
+  <title>SVG‐Zoom‐Exempel</title>
   <style>
+    /* Grundläggande styling för layout */
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
     }
     h1 {
-      margin-bottom: 10px;
+      margin-bottom: 0;
     }
-    section {
-      margin-bottom: 40px;
+    #controls {
+      display: flex;
+      gap: 10px;
     }
-    /* ---------- 1. Styling för Inline SVG ---------- */
-    #inline-svg circle {
-      fill: lightblue;
-      stroke: navy;
-      stroke-width: 2;
-      transition: fill 0.3s;
+    button {
+      padding: 8px 12px;
+      font-size: 14px;
+      cursor: pointer;
+      border: 1px solid #555;
+      background-color: #eee;
+      border-radius: 4px;
+      transition: background-color 0.2s;
     }
-    #inline-svg circle:hover {
-      fill: orange;
+    button:hover {
+      background-color: #ddd;
     }
-    #inline-svg rect {
-      fill: lightgreen;
-      stroke: darkgreen;
-      stroke-width: 2;
-      transition: transform 0.3s;
+    #svg-container {
+      /* En ram runt SVG:en */
+      border: 1px solid #ccc;
+      width: 420px;  /* något större än 400 för att visa ram */
+      height: 320px; /* något större än 300 för att visa ram */
+      overflow: hidden; /* döljer allt utanför behållarens storlek */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: white;
     }
-    #inline-svg rect:hover {
-      transform: scale(1.1);
-    }
-
-    /* ---------- 2. Styling för SVG via <img> (kan inte styla elementen inuti) ---------- */
-    /* Inga element-specifika regler här, för <img> fungerar som en svart låda */
-
-    /* ---------- 3. Styling eller varning för <object>-SVG ---------- */
-    /* Om du vill kan du skriva CSS som påverkar SVG-objektet via #object-container.
-       Dock krävs oftast JavaScript för att komma åt enskilda element inuti <object>. */
-    #object-container {
-      border: 2px dashed #666;
-      display: inline-block;
+    /* Om du vill centrera SVG:n i behållaren: */
+    #svg-container svg {
+      /* När vi skalar via viewBox så ritas SVG:en ändå. */
+      max-width: 100%;
+      max-height: 100%;
     }
   </style>
 </head>
 <body>
-  
-  <h1>SVG-Test – Komplett Exempel</h1>
-  <p>Det här är ett test som visar tre olika sätt att bädda in och interagera med <code>diagram.svg</code>.</p>
-  
-  <!-- ========== 1. Inline SVG ========== -->
-  <section>
-    <h2>1. Inbäddad (inline) SVG</h2>
-    <div id="inline-svg">
-      <!-- Hela SVG-koden klistras in direkt i HTML -->
-      <svg xmlns="http://www.w3.org/2000/svg"
-           viewBox="0 0 300 150"
-           width="300" height="150">
-        <circle id="c1" cx="75" cy="75" r="50"
-                fill="#3399ff" stroke="#003366" stroke-width="3" />
-        <rect id="r2" x="150" y="35" width="100" height="80"
-              fill="green" stroke="#006600" stroke-width="3" />
-        <text x="20" y="145" font-family="sans-serif"
-              font-size="14px" fill="#333">
-          Exempel på en SVG-grafik
-        </text>
-      </svg>
-    </div>
-    <p><small>Här kan du styla och manipulera varje element direkt med CSS/JS.</small></p>
-  </section>
-  
-  <!-- ========== 2. SVG via <img> ========== -->
-  <section>
-    <h2>2. SVG via &lt;img&gt;</h2>
-    <!-- Enkel referens till diagram.svg -->
-    <img id="img1" src="diagram.svg" alt="Diagram från SVG-fil"
-         width="300" height="150">
-    <p><small>Fungerar som en vanlig bild, men du kan inte nå in i element med CSS/JS.</small></p>
-  </section>
-  
-  <!-- ========== 3. SVG via <object> ========== -->
-  <section>
-    <h2>3. SVG via &lt;object&gt;</h2>
-    <div id="object-container">
-      <object id="svg-object" type="image/svg+xml"
-              data="diagram.svg" width="300" height="150">
-        Din webbläsare stödjer tyvärr inte SVG.
-      </object>
-    </div>
-    <p><small>Med <code>&lt;object&gt;</code> kan du via JavaScript komma åt <code>contentDocument</code> för att manipulera enskilda element.</small></p>
-  </section>
 
-  <!-- ========== JavaScript för interaktion ========== -->
+  <h1>SVG‐Zoom‐Exempel</h1>
+  <p>Diagrammet är en extern fil (<code>diagram.svg</code>) som laddas in “inline” i HTML. 
+     Du kan ändra denna fil utan att röra i <code>index.html</code>. 
+     Zooma med knapparna nedan.</p>
+
+  <!-- ---------- Zoom‐kontroller ---------- -->
+  <div id="controls">
+    <button id="zoom‐in">Zooma In (+)</button>
+    <button id="zoom‐out">Zooma Ut (−)</button>
+    <button id="reset">Återställ Zoom</button>
+  </div>
+
+  <!-- ---------- Behållare för SVG:n ---------- -->
+  <div id="svg-container">
+    <!-- Här kommer SVG koden att infogas av JavaScript -->
+  </div>
+
+  <!-- ---------- JavaScript för att ladda in och hantera SVG & Zoom ---------- -->
   <script>
-    // ---------- Hantera <object>-SVG när den är laddad ----------
-    document.getElementById('svg-object').addEventListener('load', function() {
-      const svgDoc = this.contentDocument;
-      if (!svgDoc) {
-        console.warn('Kunde inte nå contentDocument. Kontrollera webbläsarstöd och same-origin-policy.');
+    // ---------- 1. Funktion som läser in diagram.svg och placerar "inline" ----------
+    async function loadSVGInline(url, containerId) {
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error('Kunde inte hämta SVG: ' + response.status + ' ' + response.statusText);
+        }
+        const svgText = await response.text();
+        // Placera SVG‐koden direkt i behållar‐elementet.
+        document.getElementById(containerId).innerHTML = svgText;
+
+        // Returnera den infogade <svg>-element‐nod: 
+        // (vi antar att det första barn‐elementet i div är <svg>)
+        const svgElement = document.getElementById(containerId).querySelector('svg');
+        if (!svgElement) {
+          console.warn('Ingen <svg> hittades i det infogade innehållet.');
+        }
+        return svgElement;
+      } catch (err) {
+        console.error(err);
+        return null;
+      }
+    }
+
+    // ---------- 2. Funktioner för zoomning via viewBox ----------
+    function parseViewBox(svgEl) {
+      // Läser viewBox‐attributet och returnerar [x, y, width, height] som tal.
+      const vb = svgEl.getAttribute('viewBox');
+      // Om inget viewBox anges, kan vi här sätta ett default‐värde baserat på bbox (men i detta exempel antar vi att viewBox finns).
+      if (!vb) {
+        console.warn('SVG saknar viewBox. Kan ej zooma korrekt.');
+        return null;
+      }
+      return vb.split(/\s+|,/).map(Number);
+    }
+
+    function setViewBox(svgEl, vbArray) {
+      // sätter viewBox‐värdet med givna koordinater (array av 4 tal).
+      svgEl.setAttribute('viewBox', vbArray.join(' '));
+    }
+
+    function zoom(svgEl, faktor) {
+      // faktor > 1 → zoom in, faktor < 1 → zoom out
+      const vb = parseViewBox(svgEl);
+      if (!vb) return;
+      let [x, y, w, h] = vb;
+      // Beräkna nya width/height och justera x/y så att vi behåller centrum:
+      const nyaW = w / faktor;
+      const nyaH = h / faktor;
+      // Centrera: 
+      const mittX = x + w / 2;
+      const mittY = y + h / 2;
+      const nyaX = mittX - nyaW / 2;
+      const nyaY = mittY - nyaH / 2;
+      setViewBox(svgEl, [nyaX, nyaY, nyaW, nyaH]);
+    }
+
+    function resetZoom(svgEl, ursprungligViewBox) {
+      setViewBox(svgEl, ursprungligViewBox);
+    }
+
+    // ---------- 3. Huvudlogik: Körs när sidan är laddad ----------
+    window.addEventListener('DOMContentLoaded', async () => {
+      const svgUrl = 'diagram.svg';       // Din externa SVG-fil
+      const containerId = 'svg-container'; // ID för div där vi vill infoga
+
+      // 3.1 Ladda in SVG “inline” och få referens till <svg>-elementet
+      const svgEl = await loadSVGInline(svgUrl, containerId);
+      if (!svgEl) {
+        console.error('Misslyckades med att ladda SVG.');
         return;
       }
-      // Exempel: ändra färg på cirkel (id="c1") inuti SVG-filen:
-      const cirkel = svgDoc.getElementById('c1');
-      if (cirkel) {
-        cirkel.setAttribute('fill', '#ff6666');
-      }
-      // Exempel: lägg till hover-effekt på rektangel (id="r2"):
-      const rect = svgDoc.getElementById('r2');
-      if (rect) {
-        rect.addEventListener('mouseover', function() {
-          rect.setAttribute('fill', '#ffff66');
-        });
-        rect.addEventListener('mouseout', function() {
-          rect.setAttribute('fill', 'green');
-        });
-      }
-    });
 
-    // ---------- Kontrollera om <img>-SVG laddas korrekt ----------
-    document.getElementById('img1').addEventListener('error', function() {
-      console.error('Misslyckades med att ladda diagram.svg via <img>. Kontrollera sökväg & MIME-typ.');
-    });
+      // 3.2 Läs av ursprungliga viewBox‐värden för att kunna återställa senare
+      const ursprungligViewBox = parseViewBox(svgEl);
+      if (!ursprungligViewBox) {
+        console.error('Inget viewBox funnet; kan ej återställa zoom.');
+      }
 
-    // ---------- Demonstrera enkel interaktion för Inline SVG ----------
-    // Ändra opacitet när man klickar på cirkeln i inline-SVG:
-    const inlineCirkel = document.querySelector('#inline-svg #c1');
-    if (inlineCirkel) {
-      inlineCirkel.addEventListener('click', function() {
-        // Växla opacitet mellan 1 och 0.5
-        const nuvarande = inlineCirkel.getAttribute('opacity') || '1';
-        inlineCirkel.setAttribute('opacity', nuvarande === '1' ? '0.5' : '1');
+      // 3.3 Koppla zoom‐knapparna
+      document.getElementById('zoom‐in').addEventListener('click', () => {
+        // Zooma in med faktor 1.2 (20% in)
+        zoom(svgEl, 1.2);
       });
-    }
+
+      document.getElementById('zoom‐out').addEventListener('click', () => {
+        // Zooma ut med faktor 0.8 (20% ut)
+        zoom(svgEl, 0.8);
+      });
+
+      document.getElementById('reset').addEventListener('click', () => {
+        // Återställ till ursprunglig viewBox
+        if (ursprungligViewBox) {
+          resetZoom(svgEl, ursprungligViewBox);
+        }
+      });
+    });
   </script>
+
 </body>
 </html>
