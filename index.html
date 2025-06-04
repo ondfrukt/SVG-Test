@@ -2,84 +2,52 @@
 <html lang="sv">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Interaktivt Draw.io-diagram</title>
+  <title>SVG Zoom</title>
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
+    #svg-container {
       width: 100%;
+      height: 100vh;
       overflow: hidden;
-      background-color: #f0f0f0;
+      border: 1px solid #ccc;
     }
     svg {
       width: 100%;
       height: 100%;
-      display: block;
-      cursor: grab;
-    }
-    .dimmed * {
-      opacity: 0.2;
-      transition: opacity 0.3s ease;
-    }
-    .highlight {
-      opacity: 1 !important;
+      touch-action: none; /* För att zooma med touch */
     }
   </style>
 </head>
 <body>
-  <div id="svg-holder"></div>
+  <div id="svg-container">
+    <!-- SVG:n laddas in här -->
+    <object id="svg-object" type="image/svg+xml" data="ditt-diagram.svg"></object>
+  </div>
 
+  <script src="https://unpkg.com/@panzoom/panzoom@9.4.0/dist/panzoom.min.js"></script>
   <script>
-    fetch("ditt-diagram.svg")
-      .then((response) => response.text())
-      .then((svgText) => {
-        document.getElementById("svg-holder").innerHTML = svgText;
-        const svg = document.querySelector("svg");
+    document.addEventListener("DOMContentLoaded", () => {
+      const obj = document.getElementById("svg-object");
 
-        // Säkerställ viewBox
-        if (!svg.hasAttribute("viewBox")) {
-          const width = svg.getAttribute("width") || 1000;
-          const height = svg.getAttribute("height") || 800;
-          svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+      obj.addEventListener("load", () => {
+        const svgDoc = obj.contentDocument;
+        const svgElement = svgDoc.querySelector("svg");
+
+        if (svgElement) {
+          const panzoom = Panzoom(svgElement, {
+            maxScale: 10,
+            minScale: 0.5,
+            contain: "outside",
+            smoothScroll: false,
+          });
+
+          // Lägg till musens scroll för zoom
+          svgElement.parentElement.addEventListener("wheel", (event) => {
+            event.preventDefault();
+            svgElement.dispatchEvent(new WheelEvent("wheel", event));
+          });
         }
-
-        // Zoom via mouse wheel (viewBox-baserat)
-        let viewBox = svg.getAttribute("viewBox").split(" ").map(Number);
-
-        svg.addEventListener("wheel", function (e) {
-          e.preventDefault();
-
-          const scaleAmount = 1.1;
-          const [x, y, w, h] = viewBox;
-
-          const zoomIn = e.deltaY < 0;
-          const factor = zoomIn ? 1 / scaleAmount : scaleAmount;
-
-          const newW = w * factor;
-          const newH = h * factor;
-
-          const dx = (newW - w) / 2;
-          const dy = (newH - h) / 2;
-
-          viewBox = [x - dx, y - dy, newW, newH];
-          svg.setAttribute("viewBox", viewBox.join(" "));
-        });
-
-        // Klickmarkering
-        svg.addEventListener("click", (e) => {
-          const g = e.target.closest("g");
-          if (g) {
-            svg.classList.add("dimmed");
-            svg.querySelectorAll(".highlight").forEach((el) => el.classList.remove("highlight"));
-            g.classList.add("highlight");
-          } else {
-            svg.classList.remove("dimmed");
-            svg.querySelectorAll(".highlight").forEach((el) => el.classList.remove("highlight"));
-          }
-        });
       });
+    });
   </script>
 </body>
 </html>
