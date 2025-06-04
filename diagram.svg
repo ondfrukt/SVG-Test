@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- diagram.svg -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     viewBox="0 0 300 150"
+     width="300" height="150">
+  
+  <!-- En blå cirkel med id för JS/CSS-manipulation -->
+  <circle id="c1" cx="75" cy="75" r="50"
+          fill="#3399ff" stroke="#003366" stroke-width="3" />
+
+  <!-- En grön rektangel med id för JS/CSS-manipulation -->
+  <rect id="r2" x="150" y="35" width="100" height="80"
+        fill="green" stroke="#006600" stroke-width="3" />
+
+  <!-- Exempeltext längst ner -->
+  <text x="20" y="145" font-family="sans-serif" font-size="14px" fill="#333">
+    Exempel på en SVG-grafik
+  </text>
+</svg>
