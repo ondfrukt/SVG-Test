@@ -10,17 +10,14 @@
       padding: 0;
       height: 100%;
       width: 100%;
-      background-color: #f0f0f0;
       overflow: hidden;
-    }
-    #diagram-container {
-      width: 100%;
-      height: 100%;
+      background-color: #f0f0f0;
     }
     svg {
       width: 100%;
       height: 100%;
-      touch-action: none;
+      display: block;
+      cursor: grab;
     }
     .dimmed * {
       opacity: 0.2;
@@ -32,42 +29,56 @@
   </style>
 </head>
 <body>
-  <div id="diagram-container">
-    <div id="svg-holder"></div>
-  </div>
+  <div id="svg-holder"></div>
 
   <script>
-    // Ladda in SVG-filen
-    fetch('ditt-diagram.svg')
-      .then(response => response.text())
-      .then(svgText => {
-        const container = document.getElementById('svg-holder');
-        container.innerHTML = svgText;
+    fetch("ditt-diagram.svg")
+      .then((response) => response.text())
+      .then((svgText) => {
+        document.getElementById("svg-holder").innerHTML = svgText;
+        const svg = document.querySelector("svg");
 
-        const svg = container.querySelector('svg');
-
-        // Kontroll: se till att viewBox finns
-        if (!svg.hasAttribute('viewBox')) {
-          const width = svg.getAttribute('width') || 1000;
-          const height = svg.getAttribute('height') || 800;
-          svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        // Säkerställ viewBox
+        if (!svg.hasAttribute("viewBox")) {
+          const width = svg.getAttribute("width") || 1000;
+          const height = svg.getAttribute("height") || 800;
+          svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
         }
 
-        // Klickhantering
-        svg.addEventListener('click', (e) => {
-          const targetGroup = e.target.closest('g');
-          if (targetGroup) {
-            svg.classList.add('dimmed');
-            svg.querySelectorAll('.highlight').forEach(el => el.classList.remove('highlight'));
-            targetGroup.classList.add('highlight');
+        // Zoom via mouse wheel (viewBox-baserat)
+        let viewBox = svg.getAttribute("viewBox").split(" ").map(Number);
+
+        svg.addEventListener("wheel", function (e) {
+          e.preventDefault();
+
+          const scaleAmount = 1.1;
+          const [x, y, w, h] = viewBox;
+
+          const zoomIn = e.deltaY < 0;
+          const factor = zoomIn ? 1 / scaleAmount : scaleAmount;
+
+          const newW = w * factor;
+          const newH = h * factor;
+
+          const dx = (newW - w) / 2;
+          const dy = (newH - h) / 2;
+
+          viewBox = [x - dx, y - dy, newW, newH];
+          svg.setAttribute("viewBox", viewBox.join(" "));
+        });
+
+        // Klickmarkering
+        svg.addEventListener("click", (e) => {
+          const g = e.target.closest("g");
+          if (g) {
+            svg.classList.add("dimmed");
+            svg.querySelectorAll(".highlight").forEach((el) => el.classList.remove("highlight"));
+            g.classList.add("highlight");
           } else {
-            svg.classList.remove('dimmed');
-            svg.querySelectorAll('.highlight').forEach(el => el.classList.remove('highlight'));
+            svg.classList.remove("dimmed");
+            svg.querySelectorAll(".highlight").forEach((el) => el.classList.remove("highlight"));
           }
         });
-      })
-      .catch(error => {
-        console.error('Kunde inte ladda SVG:', error);
       });
   </script>
 </body>
