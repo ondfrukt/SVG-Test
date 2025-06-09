@@ -29,6 +29,7 @@
 <body>
   <div id="svg-container">
     <object
+      id="svg-object"
       type="image/svg+xml"
       data="diagram.svg"
       aria-label="SVG-diagram">
@@ -36,12 +37,34 @@
     </object>
   </div>
   <script>
-    // Lyssna på fönsterstorleksändring för att skicka ett meddelande till SVG:en
-    window.addEventListener('resize', () => {
-      const obj = document.querySelector('object');
-      if (obj && obj.contentWindow && obj.contentWindow.onParentResize) {
-        obj.contentWindow.onParentResize();
-      }
+    // När SVG:n är laddad, koppla wheel-event till SVG för inzoomning
+    const obj = document.getElementById('svg-object');
+    obj.addEventListener('load', () => {
+      const svgDoc = obj.contentDocument;
+      const svgEl = svgDoc.querySelector('svg');
+      if (!svgEl) return;
+      // Lyssna på wheel på containern och forwarda till SVG-elementet
+      obj.parentElement.addEventListener('wheel', function(evt) {
+        evt.preventDefault();
+        const newEvt = new WheelEvent('wheel', {
+          deltaX: evt.deltaX,
+          deltaY: evt.deltaY,
+          ctrlKey: evt.ctrlKey,
+          shiftKey: evt.shiftKey,
+          metaKey: evt.metaKey,
+          clientX: evt.clientX,
+          clientY: evt.clientY,
+          bubbles: true,
+          cancelable: true
+        });
+        svgEl.dispatchEvent(newEvt);
+      }, { passive: false });
+      // Vid behov: skicka resize till SVG om den definierar onParentResize
+      window.addEventListener('resize', () => {
+        if (svgDoc.defaultView.onParentResize) {
+          svgDoc.defaultView.onParentResize();
+        }
+      });
     });
   </script>
 </body>
