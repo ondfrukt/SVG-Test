@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SVG-test med dynamisk viewBox-zoom, pan och skalbar text</title>
+  <title>SVG-test med skalbar text, zoom & pan</title>
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
     #svg-container { width: 100%; height: 100%; cursor: grab; }
@@ -16,37 +16,36 @@
   <script>
     (async () => {
       const container = document.getElementById('svg-container');
+      let raw;
       try {
         const resp = await fetch('diagram.svg');
         if (!resp.ok) throw new Error(resp.status + ' ' + resp.statusText);
-        let raw = await resp.text();
-        // Rensa XML-prolog & DOCTYPE
-        raw = raw
-          .replace(/<\?xml[\s\S]*?\?>\s*/g, '')
-          .replace(/<!DOCTYPE[\s\S]*?>\s*/g, '');
-        // Gör font-size skalbar: ta bort 'px' så enheter blir användarkoordinater
-        raw = raw
-          .replace(/font-size\s*:\s*([\d.]+)px/g, 'font-size:$1')
-          .replace(/font-size="([\d.]+)px"/g, 'font-size="$1"');
-        container.innerHTML = raw;
+        raw = await resp.text();
       } catch (err) {
         console.error('Kunde inte ladda SVG:', err);
         return;
       }
+      // Rensa XML-prolog & DOCTYPE
+      raw = raw
+        .replace(/<\?xml[\s\S]*?\?>\s*/g, '')
+        .replace(/<!DOCTYPE[\s\S]*?>\s*/g, '');
+      container.innerHTML = raw;
 
       const svgEl = container.querySelector('svg');
-      if (!svgEl) return console.error('Ingen SVG hittades');
+      if (!svgEl) { console.error('Ingen SVG hittades'); return; }
+      // Ta bort alla <foreignObject> så att fallback <text> används och skalar med viewBox
+      svgEl.querySelectorAll('foreignObject').forEach(el => el.remove());
+
       // Ta bort fasta mått så viewBox styr dimensioner
       svgEl.removeAttribute('width');
       svgEl.removeAttribute('height');
       svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-      // Säkerställ viewBox
       if (!svgEl.getAttribute('viewBox')) {
-        const box = svgEl.getBBox();
-        svgEl.setAttribute('viewBox', `0 0 ${box.width} ${box.height}`);
+        const b = svgEl.getBBox();
+        svgEl.setAttribute('viewBox', `0 0 ${b.width} ${b.height}`);
       }
 
-      // Zoom med mushjul (ingen Ctrl-krav)
+      // Zoom med mushjul
       window.addEventListener('wheel', e => {
         if (!container.contains(e.target)) return;
         e.preventDefault();
@@ -54,9 +53,9 @@
         const factor = e.deltaY < 0 ? 0.9 : 1.1;
         const newW = w * factor;
         const newH = h * factor;
-        const rect = svgEl.getBoundingClientRect();
-        const px = (e.clientX - rect.left) / rect.width;
-        const py = (e.clientY - rect.top) / rect.height;
+        const r = svgEl.getBoundingClientRect();
+        const px = (e.clientX - r.left) / r.width;
+        const py = (e.clientY - r.top) / r.height;
         const cx = x + px * w;
         const cy = y + py * h;
         const nx = cx - px * newW;
@@ -64,17 +63,17 @@
         svgEl.setAttribute('viewBox', `${nx} ${ny} ${newW} ${newH}`);
       }, { passive: false });
 
-      // Pan med vänster musknapp
+      // Pan med vänster musknapp på SVG
       let isPanning = false;
-      let start = {};
+      let start;
       svgEl.addEventListener('mousedown', e => {
         if (e.button !== 0) return;
         e.preventDefault();
         isPanning = true;
         container.classList.add('grabbing');
-        const rect = svgEl.getBoundingClientRect();
+        const r = svgEl.getBoundingClientRect();
         const [x, y, w, h] = svgEl.getAttribute('viewBox').split(' ').map(Number);
-        start = { x: e.clientX, y: e.clientY, vbX: x, vbY: y, vbW: w, vbH: h, rect };
+        start = { x: e.clientX, y: e.clientY, vbX: x, vbY: y, vbW: w, vbH: h, rect: r };
       });
       window.addEventListener('mousemove', e => {
         if (!isPanning) return;
