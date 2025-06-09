@@ -3,41 +3,52 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SVG-test med svg-pan-zoom (inline)</title>
+  <title>SVG-test med svg-pan-zoom (extern)</title>
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
-    #svg-container { width: 100%; height: 100%; overflow: hidden; }
-    #svg-container svg { width: 100%; height: 100%; display: block; }
+    #svg-container { width: 100%; height: 100%; overflow: hidden; position: relative; }
+    object { width: 100%; height: 100%; display: block; }
+    /* Eventuella kontrollknappar */
+    .svg-pan-zoom-control { position: absolute; top: 10px; right: 10px; z-index: 10; }
   </style>
   <!-- svg-pan-zoom från CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/svg-pan-zoom/3.6.1/svg-pan-zoom.min.js"></script>
 </head>
 <body>
   <div id="svg-container">
-    <!-- Klistra in innehållet från diagram.svg här -->
-    <svg id="my-svg" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
-      <!-- ... ditt draw.io-diagram ... -->
-    </svg>
+    <object id="svg-object" type="image/svg+xml" data="diagram.svg"></object>
   </div>
   <script>
-    // Initiera svg-pan-zoom på inline-SVG
-    const panZoomInstance = svgPanZoom('#my-svg', {
-      zoomEnabled: true,
-      controlIconsEnabled: true,
-      fit: true,
-      center: true,
-      minZoom: 0.5,
-      maxZoom: 10,
-      zoomScaleSensitivity: 0.2,
-      mouseWheelZoomEnabled: true,
-      dblClickZoomEnabled: false,
-      preventMouseEventsDefault: false
-    });
-    // Anpassa vid resize
-    window.addEventListener('resize', () => {
-      panZoomInstance.resize();
-      panZoomInstance.fit();
-      panZoomInstance.center();
+    const obj = document.getElementById('svg-object');
+    obj.addEventListener('load', () => {
+      const svgDoc = obj.contentDocument;
+      const svgEl = svgDoc.documentElement;
+      // Ta bort width/height om finns
+      svgEl.removeAttribute('width');
+      svgEl.removeAttribute('height');
+      // Säkerställ preserveAspectRatio
+      svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+      // Initiera svg-pan-zoom på den inbäddade SVG:n
+      const panZoomInstance = svgPanZoom(svgEl, {
+        zoomEnabled: true,
+        controlIconsEnabled: true,
+        fit: true,
+        center: true,
+        minZoom: 0.5,
+        maxZoom: 10,
+        zoomScaleSensitivity: 0.2,
+        mouseWheelZoomEnabled: true,
+        dblClickZoomEnabled: false,
+        preventMouseEventsDefault: false
+      });
+
+      // Anpassa vid resize
+      window.addEventListener('resize', () => {
+        panZoomInstance.resize();
+        panZoomInstance.fit();
+        panZoomInstance.center();
+      });
     });
   </script>
 </body>
