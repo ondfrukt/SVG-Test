@@ -3,65 +3,63 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SVG-test</title>
+  <title>SVG-test med Panzoom</title>
   <style>
-    /* Nollställ marginaler och fyll hela fönstret */
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-    }
-    /* Wrapper för SVG:en */
-    #svg-container {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-    }
-    /* Inline SVG fyller alltid containern och behåller proportioner */
-    #svg-container svg {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+    #svg-container { width: 100%; height: 100%; overflow: hidden; }
+    #svg-container svg { width: 100%; height: 100%; display: block; }
   </style>
+  <!-- Panzoom från CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@panzoom/panzoom@9.4.0/dist/panzoom.min.js"></script>
 </head>
 <body>
   <div id="svg-container"></div>
-
   <script>
-    // Ladda in SVG inline för att bevara event-lyssnare
-    fetch('diagram.svg')
-      .then(response => response.text())
-      .then(svgText => {
-        const container = document.getElementById('svg-container');
-        container.innerHTML = svgText;
-        const svgEl = container.querySelector('svg');
-        if (!svgEl) return;
+    async function init() {
+      const container = document.getElementById('svg-container');
+      const resp = await fetch('diagram.svg');
+      const text = await resp.text();
+      container.innerHTML = text;
+      const svgEl = container.querySelector('svg');
+      if (!svgEl) return;
+      // Ta bort fasta attribut så Panzoom kan styra viewBox
+      svgEl.removeAttribute('width');
+      svgEl.removeAttribute('height');
+      svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
 
-        // Säkerställ preserveAspectRatio för proportionell skalning
-        if (!svgEl.hasAttribute('preserveAspectRatio')) {
-          svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-        }
+      // Initiera Panzoom
+      const panzoom = Panzoom(svgEl, {
+        maxScale: 8,
+        minScale: 0.5,
+        contain: 'outside',
+        disablePan: false,
+        transformOrigin: { x: 0, y: 0 }
+      });
 
-        // Forwarda hjul-events till SVG för zoom, men låt ctrl+wheel zooma webbläsaren
-        container.addEventListener('wheel', evt => {
-          // Om ctrl är nedtryckt, tillåt browser-zoom
-          if (evt.ctrlKey) return;
-          evt.preventDefault();
-          const evtInit = Object.assign({}, evt, { bubbles: true, cancelable: true });
-          const newEvt = new WheelEvent('wheel', evtInit);
-          svgEl.dispatchEvent(newEvt);
-        }, { passive: false });
+      // Zooma med scrollhjul
+      container.addEventListener('wheel', event => {
+        event.preventDefault();
+        panzoom.zoomWithWheel(event);
+      }, { passive: false });
 
-        // Kalla på onParentResize vid fönsterändring om det finns
-        window.addEventListener('resize', () => {
-          if (typeof svgEl.ownerDocument.defaultView.onParentResize === 'function') {
-            svgEl.ownerDocument.defaultView.onParentResize();
-          }
-        });
-      })
-      .catch(err => console.error('Kunde inte ladda SVG:', err));
+      // Pan med mus (håll in canClick-knapp eller alt/ctrl enligt ditt behov)
+      container.addEventListener('mousedown', event => {
+        event.preventDefault();
+        panzoom.start(event);
+
+        const onMouseMove = e => panzoom.move(e);
+        const onMouseUp   = () => {
+          window.removeEventListener('mousemove', onMouseMove);
+          window.removeEventListener('mouseup', onMouseUp);
+        };
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+      });
+
+      // Anpassa vid resize
+      window.addEventListener('resize', () => panzoom.reset());
+    }
+    init().catch(console.error);
   </script>
 </body>
 </html>
