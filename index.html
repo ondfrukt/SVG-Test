@@ -12,20 +12,16 @@
       width: 100%;
       height: 100%;
     }
-    /* Wrapper för objektet */
+    /* Wrapper för SVG:en */
     #svg-container {
       width: 100%;
       height: 100%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      overflow: hidden;
     }
-    /* Objektet görs normalt storlek (auto) men får maxstorlek av föräldern */
+    /* Objektet fyller alltid containern */
     object {
-      width: auto;
-      height: auto;
-      max-width: 100%;
-      max-height: 100%;
+      width: 100%;
+      height: 100%;
       display: block;
     }
   </style>
@@ -39,5 +35,14 @@
       Din webbläsare stödjer inte SVG.
     </object>
   </div>
+  <script>
+    // Lyssna på fönsterstorleksändring för att skicka ett meddelande till SVG:en
+    window.addEventListener('resize', () => {
+      const obj = document.querySelector('object');
+      if (obj && obj.contentWindow && obj.contentWindow.onParentResize) {
+        obj.contentWindow.onParentResize();
+      }
+    });
+  </script>
 </body>
 </html>
