@@ -30,7 +30,7 @@
   <div id="svg-container"></div>
 
   <script>
-    // Hämta och inline-ladda SVG för att bevara event-lyssnare
+    // Ladda in SVG inline för att bevara event-lyssnare
     fetch('diagram.svg')
       .then(response => response.text())
       .then(svgText => {
@@ -39,38 +39,25 @@
         const svgEl = container.querySelector('svg');
         if (!svgEl) return;
 
-        // Se till att vi har preserveAspectRatio för proportionell skalning
+        // Säkerställ preserveAspectRatio för proportionell skalning
         if (!svgEl.hasAttribute('preserveAspectRatio')) {
           svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
         }
 
-        // Forwarda alla hjul-events med fulla egenskaper in i SVG:n
+        // Forwarda hjul-events till SVG för zoom, men låt ctrl+wheel zooma webbläsaren
         container.addEventListener('wheel', evt => {
+          // Om ctrl är nedtryckt, tillåt browser-zoom
+          if (evt.ctrlKey) return;
           evt.preventDefault();
-          const evtInit = {
-            deltaX: evt.deltaX,
-            deltaY: evt.deltaY,
-            deltaZ: evt.deltaZ,
-            deltaMode: evt.deltaMode,
-            clientX: evt.clientX,
-            clientY: evt.clientY,
-            screenX: evt.screenX,
-            screenY: evt.screenY,
-            ctrlKey: evt.ctrlKey,
-            shiftKey: evt.shiftKey,
-            altKey: evt.altKey,
-            metaKey: evt.metaKey,
-            bubbles: true,
-            cancelable: true
-          };
+          const evtInit = Object.assign({}, evt, { bubbles: true, cancelable: true });
           const newEvt = new WheelEvent('wheel', evtInit);
           svgEl.dispatchEvent(newEvt);
         }, { passive: false });
 
-        // Vid fönsterändring, kalla på onParentResize om definierad i SVG:n
+        // Kalla på onParentResize vid fönsterändring om det finns
         window.addEventListener('resize', () => {
-          if (typeof onParentResize === 'function') {
-            onParentResize();
+          if (typeof svgEl.ownerDocument.defaultView.onParentResize === 'function') {
+            svgEl.ownerDocument.defaultView.onParentResize();
           }
         });
       })
