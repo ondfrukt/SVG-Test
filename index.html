@@ -3,56 +3,51 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SVG-test med svg-pan-zoom (Ctrl+scroll)</title>
+  <title>SVG-test med enkel CSS-transform-zoom</title>
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
-    #svg-container { width: 100%; height: 100%; overflow: hidden; position: relative; }
-    object { width: 100%; height: 100%; display: block; }
+    #svg-container { 
+      width: 100%; 
+      height: 100%; 
+      overflow: auto; /* Visa scrollbars vid inzoom */
+      background-color: #f0f0f0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #svg-container svg {
+      display: block;
+      transform-origin: 0 0;
+      transition: transform 0.1s ease;
+    }
   </style>
-  <!-- svg-pan-zoom från CDN -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/svg-pan-zoom/3.6.1/svg-pan-zoom.min.js"></script>
 </head>
 <body>
-  <div id="svg-container">
-    <object id="svg-object" type="image/svg+xml" data="diagram.svg"></object>
-  </div>
+  <div id="svg-container"></div>
   <script>
-    const obj = document.getElementById('svg-object');
-    obj.addEventListener('load', () => {
-      const svgDoc = obj.contentDocument;
-      const svgEl = svgDoc.documentElement;
-      // Ta bort fasta mått så viewBox är dynamiskt
-      svgEl.removeAttribute('width');
-      svgEl.removeAttribute('height');
-      svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    (async function() {
+      try {
+        const resp = await fetch('diagram.svg');
+        if (!resp.ok) throw new Error('Kunde inte ladda SVG');
+        const svgText = await resp.text();
+        const container = document.getElementById('svg-container');
+        container.innerHTML = svgText;
+        const svgEl = container.querySelector('svg');
+        if (!svgEl) throw new Error('Ingen SVG hittad');
 
-      // Initiera svg-pan-zoom utan automatisk fit på resize
-      const panZoomInstance = svgPanZoom(svgEl, {
-        zoomEnabled: true,
-        controlIconsEnabled: true,
-        fitOnInit: true,         // passar inledningsvis
-        centerOnInit: true,
-        minZoom: 0.5,
-        maxZoom: 10,
-        zoomScaleSensitivity: 0.2,
-        mouseWheelZoomEnabled: false,  // vi hanterar zoom med Ctrl+scroll
-        dblClickZoomEnabled: false,
-        preventMouseEventsDefault: false
-      });
-
-      // Hantera Ctrl+scroll för zoomning
-      obj.parentElement.addEventListener('wheel', evt => {
-        if (evt.ctrlKey) {
+        let scale = 1;
+        container.addEventListener('wheel', (evt) => {
+          if (!evt.ctrlKey) return; // Ctrl+scroll för zoom
           evt.preventDefault();
-          panZoomInstance.zoomWithWheel(evt);
-        }
-      }, { passive: false });
-
-      // På resize, uppdatera bara ritytan, inte fit eller center
-      window.addEventListener('resize', () => {
-        panZoomInstance.resize();
-      });
-    });
+          // Zooma in/ut
+          scale *= (evt.deltaY < 0) ? 1.1 : 0.9;
+          scale = Math.min(Math.max(scale, 0.5), 10);
+          svgEl.style.transform = `scale(${scale})`;
+        }, { passive: false });
+      } catch (err) {
+        console.error(err);
+      }
+    })();
   </script>
 </body>
 </html>
