@@ -18,8 +18,8 @@
       height: 100%;
       overflow: hidden;
     }
-    /* Objektet fyller alltid containern */
-    object {
+    /* Inline SVG fyller alltid containern */
+    #svg-container svg {
       width: 100%;
       height: 100%;
       display: block;
@@ -27,45 +27,31 @@
   </style>
 </head>
 <body>
-  <div id="svg-container">
-    <object
-      id="svg-object"
-      type="image/svg+xml"
-      data="diagram.svg"
-      aria-label="SVG-diagram">
-      Din webbläsare stödjer inte SVG.
-    </object>
-  </div>
+  <div id="svg-container"></div>
+
   <script>
-    // När SVG:n är laddad, koppla wheel-event till SVG för inzoomning
-    const obj = document.getElementById('svg-object');
-    obj.addEventListener('load', () => {
-      const svgDoc = obj.contentDocument;
-      const svgEl = svgDoc.querySelector('svg');
-      if (!svgEl) return;
-      // Lyssna på wheel på containern och forwarda till SVG-elementet
-      obj.parentElement.addEventListener('wheel', function(evt) {
-        evt.preventDefault();
-        const newEvt = new WheelEvent('wheel', {
-          deltaX: evt.deltaX,
-          deltaY: evt.deltaY,
-          ctrlKey: evt.ctrlKey,
-          shiftKey: evt.shiftKey,
-          metaKey: evt.metaKey,
-          clientX: evt.clientX,
-          clientY: evt.clientY,
-          bubbles: true,
-          cancelable: true
+    // Ladda in SVG inline för att behålla event-lyssnare
+    fetch('diagram.svg')
+      .then(response => response.text())
+      .then(svgText => {
+        const container = document.getElementById('svg-container');
+        container.innerHTML = svgText;
+        const svgEl = container.querySelector('svg');
+        if (!svgEl) return;
+        // Initiera zoomfunktion (exempel med Tung nollmotor)
+        // Antag att din tidigare wheel-lyssning finns i SVG:en
+        container.addEventListener('wheel', evt => {
+          evt.preventDefault();
+          svgEl.dispatchEvent(new WheelEvent('wheel', evt));
+        }, { passive: false });
+        // Hantera fönster-ändring
+        window.addEventListener('resize', () => {
+          if (typeof onParentResize === 'function') {
+            onParentResize();
+          }
         });
-        svgEl.dispatchEvent(newEvt);
-      }, { passive: false });
-      // Vid behov: skicka resize till SVG om den definierar onParentResize
-      window.addEventListener('resize', () => {
-        if (svgDoc.defaultView.onParentResize) {
-          svgDoc.defaultView.onParentResize();
-        }
-      });
-    });
+      })
+      .catch(err => console.error('Kunde inte ladda SVG:', err));
   </script>
 </body>
 </html>
