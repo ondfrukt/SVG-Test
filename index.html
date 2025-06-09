@@ -9,9 +9,9 @@
     #svg-container { width: 100%; height: 100%; cursor: grab; }
     #svg-container.grabbing { cursor: grabbing; }
     #svg-container svg { width: 100%; height: 100%; display: block; pointer-events: all; user-select: none; }
-    /* Dölj fallback <text>-element, behåll <foreignObject> med HTML för varierande font-size */
-    #svg-container svg text { display: none; }
-    #svg-container svg foreignObject { display: block; }
+    /* Visa SVG-<text> med korrekta storlekar, göm HTML-<foreignObject> */
+    #svg-container svg foreignObject { display: none; }
+    #svg-container svg text { display: block; fill: #000; }
   </style>
 </head>
 <body>
@@ -22,13 +22,13 @@
       let raw;
       try {
         const resp = await fetch('diagram.svg');
-        if (!resp.ok) throw new Error(resp.status + ' ' + resp.statusText);
+        if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
         raw = await resp.text();
       } catch (err) {
         console.error('Kunde inte ladda SVG:', err);
         return;
       }
-      // Rensa XML-prolog & DOCTYPE så SVG-taggen blir korrekt i DOM
+      // Rensa XML-prolog & DOCTYPE
       raw = raw
         .replace(/<\?xml[\s\S]*?\?>\s*/g, '')
         .replace(/<!DOCTYPE[\s\S]*?>\s*/g, '');
@@ -36,7 +36,7 @@
 
       const svgEl = container.querySelector('svg');
       if (!svgEl) { console.error('Ingen SVG hittades'); return; }
-      // Ta bort fasta mått så viewBox styr dimensioner
+      // Ta bort fasta mått
       svgEl.removeAttribute('width');
       svgEl.removeAttribute('height');
       svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
@@ -45,7 +45,38 @@
         svgEl.setAttribute('viewBox', `0 0 ${b.width} ${b.height}`);
       }
 
-      // Zoom med mushjul utan Ctrl-krav
+      // För varje <foreignObject>, extrahera font-size och text för fallback <text>
+      svgEl.querySelectorAll('foreignObject').forEach(fo => {
+        const parentG = fo.closest('g');
+        const textNode = parentG.querySelector('text');
+        if (!textNode) return;
+        // Hämta HTML-innehåll
+        const htmlDiv = fo.querySelector('div');
+        if (!htmlDiv) return;
+        const html = htmlDiv.innerHTML;
+        // Bestäm font-size
+        let fs;
+        const fontTag = htmlDiv.querySelector('font');
+        if (fontTag && fontTag.style.fontSize) fs = fontTag.style.fontSize;
+        else fs = window.getComputedStyle(htmlDiv).fontSize;
+        if (fs.endsWith('px')) {
+          textNode.setAttribute('font-size', parseFloat(fs));
+        }
+        // Rensa befintliga tspan
+        while (textNode.firstChild) textNode.removeChild(textNode.firstChild);
+        // Dela på <br> och skapa tspan för varje rad
+        const lines = html.split(/<br\s*\/?>/i);
+        lines.forEach((line, i) => {
+          const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+          tspan.setAttribute('x', textNode.getAttribute('x'));
+          tspan.setAttribute('dy', i === 0 ? '0em' : '1.2em');
+          // Rensa HTML-taggar
+          tspan.textContent = line.replace(/<[^>]+>/g, '');
+          textNode.appendChild(tspan);
+        });
+      });
+
+      // Zoom med mushjul utan Ctrl
       window.addEventListener('wheel', e => {
         if (!container.contains(e.target)) return;
         e.preventDefault();
@@ -58,14 +89,11 @@
         const py = (e.clientY - r.top) / r.height;
         const cx = x + px * w;
         const cy = y + py * h;
-        const nx = cx - px * newW;
-        const ny = cy - py * newH;
-        svgEl.setAttribute('viewBox', `${nx} ${ny} ${newW} ${newH}`);
+        svgEl.setAttribute('viewBox', `${cx - px*newW} ${cy - py*newH} ${newW} ${newH}`);
       }, { passive: false });
 
-      // Pan med vänster muspekare
-      let isPanning = false;
-      let start;
+      // Pan med vänster knapp
+      let isPanning = false, start;
       svgEl.addEventListener('mousedown', e => {
         if (e.button !== 0) return;
         e.preventDefault();
