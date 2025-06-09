@@ -57,17 +57,17 @@
         svgEl.setAttribute('viewBox', `${nx} ${ny} ${newW} ${newH}`);
       }, { passive: false });
 
-      // Pan med scroll-hjulsklick
+      // Pan med vänster musknapp
       let isPanning = false;
       let start = {};
       container.addEventListener('mousedown', e => {
-        if (e.button !== 1) return;
+        if (e.button !== 0) return; // vänster knopp
         e.preventDefault();
         isPanning = true;
         container.classList.add('grabbing');
         const rect = svgEl.getBoundingClientRect();
         const [x, y, w, h] = svgEl.getAttribute('viewBox').split(' ').map(Number);
-        start = { 
+        start = {
           x: e.clientX,
           y: e.clientY,
           vbX: x,
@@ -85,13 +85,9 @@
         svgEl.setAttribute('viewBox', `${start.vbX - dx} ${start.vbY - dy} ${start.vbW} ${start.vbH}`);
       });
       window.addEventListener('mouseup', e => {
-        if (e.button !== 1) return;
+        if (e.button !== 0) return;
         isPanning = false;
         container.classList.remove('grabbing');
-      });
-      // Hindra auto-scroll på mittknappsklick
-      container.addEventListener('auxclick', e => {
-        if (e.button === 1) e.preventDefault();
       });
     })();
   </script>
