@@ -6,9 +6,14 @@
   <title>SVG-test med skalbar text, zoom & pan</title>
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
-    #svg-container { width: 100%; height: 100%; cursor: grab; }
+    #svg-container { width: 100%; height: 100%; cursor: grab; color: #000; }
     #svg-container.grabbing { cursor: grabbing; }
     #svg-container svg { width: 100%; height: 100%; display: block; pointer-events: all; user-select: none; }
+    /* Tvinga text att visas och skala med viewBox */
+    #svg-container svg text {
+      fill: #000 !important;
+      font-size: inherit !important;
+    }
   </style>
 </head>
 <body>
@@ -33,10 +38,10 @@
 
       const svgEl = container.querySelector('svg');
       if (!svgEl) { console.error('Ingen SVG hittades'); return; }
-      // Ta bort alla <foreignObject> så att fallback <text> används och skalar med viewBox
+      // Ta bort alla <foreignObject> så fallback <text> används
       svgEl.querySelectorAll('foreignObject').forEach(el => el.remove());
 
-      // Ta bort fasta mått så viewBox styr dimensioner
+      // Initiera viewBox
       svgEl.removeAttribute('width');
       svgEl.removeAttribute('height');
       svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
@@ -63,7 +68,7 @@
         svgEl.setAttribute('viewBox', `${nx} ${ny} ${newW} ${newH}`);
       }, { passive: false });
 
-      // Pan med vänster musknapp på SVG
+      // Pan med vänster musknapp
       let isPanning = false;
       let start;
       svgEl.addEventListener('mousedown', e => {
