@@ -19,7 +19,7 @@
       try {
         const resp = await fetch('diagram.svg');
         if (!resp.ok) throw new Error(resp.status + ' ' + resp.statusText);
-        let raw = await resp.text();
+        const raw = await resp.text();
         const clean = raw
           .replace(/<\?xml[\s\S]*?\?>\s*/g, '')
           .replace(/<!DOCTYPE[\s\S]*?>\s*/g, '');
@@ -59,9 +59,9 @@
 
       // Pan med scroll-hjulsklick
       let isPanning = false;
-      let start = { x: 0, y: 0, vbX: 0, vbY: 0, vbW: 0, vbH: 0 };
-      container.addEventListener('mousedown', e => {
-        if (e.button !== 1) return; // bara scrollhjulet
+      let start = {};
+      window.addEventListener('mousedown', e => {
+        if (e.button !== 1 || !container.contains(e.target)) return;
         e.preventDefault();
         isPanning = true;
         container.classList.add('grabbing');
@@ -90,8 +90,8 @@
         container.classList.remove('grabbing');
       });
       // Hindra auto-scroll på mellanklick
-      container.addEventListener('auxclick', e => {
-        if (e.button === 1) e.preventDefault();
+      window.addEventListener('auxclick', e => {
+        if (e.button === 1 && container.contains(e.target)) e.preventDefault();
       });
     })();
   </script>
