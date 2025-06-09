@@ -3,64 +3,85 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SVG-test med fetch och viewBox-zoom</title>
+  <title>SVG-test med dynamisk viewBox-zoom</title>
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
-    #svg-container { width: 100%; height: 100%; overflow: hidden; position: relative; }
-    #svg-container svg { width: 100%; height: 100%; display: block; }
+    #svg-container {
+      width: 100%; height: 100%; overflow: hidden;
+    }
+    /* Gör så att vi kan fokusera och fånga upp wheel */
+    #svg-container { outline: none; }
+    #svg-container svg {
+      width: 100%; height: 100%; display: block;
+      /* Säkerställ att mus-händelser når elementet */
+      pointer-events: all;
+    }
   </style>
 </head>
 <body>
-  <div id="svg-container"></div>
+  <div id="svg-container" tabindex="0"></div>
 
   <script>
     (async () => {
+      const container = document.getElementById('svg-container');
+      // Ladda och inline-SVG
       try {
-        // Fetch och inline-ladda SVG
         const resp = await fetch('diagram.svg');
-        if (!resp.ok) throw new Error('SVG kunde inte hämtas: ' + resp.statusText);
-        const svgText = await resp.text();
-
-        const container = document.getElementById('svg-container');
-        container.innerHTML = svgText;
-
-        const svgEl = container.querySelector('svg');
-        if (!svgEl) throw new Error('Ingen SVG hittades i diagramet.');
-
-        // Kontrollera viewBox
-        let vb = svgEl.getAttribute('viewBox')?.split(' ').map(Number);
-        if (!vb || vb.length !== 4) {
-          console.error('SVG saknar korrekt viewBox');
-          return;
-        }
-        const initial = vb.slice();
-
-        // Zoom med Ctrl + mushjul: justera viewBox kring centrum
-        container.addEventListener('wheel', e => {
-          if (!e.ctrlKey) return;      // bara vid Ctrl
-          e.preventDefault();
-
-          // beräkna ny zoomfaktor
-          const factor = e.deltaY < 0 ? 0.9 : 1.1;
-          vb[2] *= factor;
-          vb[3] *= factor;
-
-          // behåll centrum
-          const cx = initial[0] + initial[2] / 2;
-          const cy = initial[1] + initial[3] / 2;
-          vb[0] = cx - vb[2] / 2;
-          vb[1] = cy - vb[3] / 2;
-
-          svgEl.setAttribute('viewBox', vb.join(' '));
-        }, { passive: false });
-
-        // Anpassa vid fönsterstorleksändring: fyll container utan att resetta zoom
-        window.addEventListener('resize', () => {
-          // inget extra; SVG fyller container via CSS
-        });
+        if (!resp.ok) throw new Error(resp.status + ' ' + resp.statusText);
+        const text = await resp.text();
+        container.innerHTML = text;
       } catch (err) {
-        console.error(err);
+        return console.error('Kunde inte hämta SVG:', err);
       }
+
+      const svgEl = container.querySelector('svg');
+      if (!svgEl) return console.error('Ingen SVG hittades');
+      // Se till att viewBox finns
+      let vb = svgEl.getAttribute('viewBox');
+      if (!vb) {
+        const w = svgEl.clientWidth;
+        const h = svgEl.clientHeight;
+        svgEl.setAttribute('viewBox', `0 0 ${w} ${h}`);
+        vb = svgEl.getAttribute('viewBox');
+      }
+
+      // Fånga Ctrl+wheel på containern
+      container.addEventListener('wheel', (e) => {
+        if (!e.ctrlKey) return;  // Endast vid Ctrl
+        e.preventDefault();
+
+        // Läs aktuell viewBox
+        let parts = svgEl.getAttribute('viewBox').split(' ').map(Number);
+        let [x, y, w, h] = parts;
+
+        // Zoomfaktor
+        const factor = e.deltaY < 0 ? 0.9 : 1.1;
+        const newW = w * factor;
+        const newH = h * factor;
+
+        // Zooma kring muspekarens position
+        const rect = svgEl.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const px = mx / rect.width;
+        const py = my / rect.height;
+
+        // Räkna ut nya x,y så att punkten under musen är fix
+        const cx = x + px * w;
+        const cy = y + py * h;
+        const nx = cx - px * newW;
+        const ny = cy - py * newH;
+
+        svgEl.setAttribute('viewBox', `${nx} ${ny} ${newW} ${newH}`);
+      }, { passive: false });
+
+      // Vid resize: fyll ut utan att ändra zoom
+      window.addEventListener('resize', () => {
+        // Inget behövs här; CSS sköter storleken
+      });
+
+      // Ge fokus för att fånga wheel
+      container.focus();
     })();
   </script>
 </body>
