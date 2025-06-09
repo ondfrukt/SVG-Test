@@ -3,63 +3,42 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SVG-test med Panzoom</title>
+  <title>SVG-test med svg-pan-zoom (inline)</title>
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
     #svg-container { width: 100%; height: 100%; overflow: hidden; }
     #svg-container svg { width: 100%; height: 100%; display: block; }
   </style>
-  <!-- Panzoom från CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@panzoom/panzoom@9.4.0/dist/panzoom.min.js"></script>
+  <!-- svg-pan-zoom från CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/svg-pan-zoom/3.6.1/svg-pan-zoom.min.js"></script>
 </head>
 <body>
-  <div id="svg-container"></div>
+  <div id="svg-container">
+    <!-- Klistra in innehållet från diagram.svg här -->
+    <svg id="my-svg" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+      <!-- ... ditt draw.io-diagram ... -->
+    </svg>
+  </div>
   <script>
-    async function init() {
-      const container = document.getElementById('svg-container');
-      const resp = await fetch('diagram.svg');
-      const text = await resp.text();
-      container.innerHTML = text;
-      const svgEl = container.querySelector('svg');
-      if (!svgEl) return;
-      // Ta bort fasta attribut så Panzoom kan styra viewBox
-      svgEl.removeAttribute('width');
-      svgEl.removeAttribute('height');
-      svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-
-      // Initiera Panzoom
-      const panzoom = Panzoom(svgEl, {
-        maxScale: 8,
-        minScale: 0.5,
-        contain: 'outside',
-        disablePan: false,
-        transformOrigin: { x: 0, y: 0 }
-      });
-
-      // Zooma med scrollhjul
-      container.addEventListener('wheel', event => {
-        event.preventDefault();
-        panzoom.zoomWithWheel(event);
-      }, { passive: false });
-
-      // Pan med mus (håll in canClick-knapp eller alt/ctrl enligt ditt behov)
-      container.addEventListener('mousedown', event => {
-        event.preventDefault();
-        panzoom.start(event);
-
-        const onMouseMove = e => panzoom.move(e);
-        const onMouseUp   = () => {
-          window.removeEventListener('mousemove', onMouseMove);
-          window.removeEventListener('mouseup', onMouseUp);
-        };
-        window.addEventListener('mousemove', onMouseMove);
-        window.addEventListener('mouseup', onMouseUp);
-      });
-
-      // Anpassa vid resize
-      window.addEventListener('resize', () => panzoom.reset());
-    }
-    init().catch(console.error);
+    // Initiera svg-pan-zoom på inline-SVG
+    const panZoomInstance = svgPanZoom('#my-svg', {
+      zoomEnabled: true,
+      controlIconsEnabled: true,
+      fit: true,
+      center: true,
+      minZoom: 0.5,
+      maxZoom: 10,
+      zoomScaleSensitivity: 0.2,
+      mouseWheelZoomEnabled: true,
+      dblClickZoomEnabled: false,
+      preventMouseEventsDefault: false
+    });
+    // Anpassa vid resize
+    window.addEventListener('resize', () => {
+      panZoomInstance.resize();
+      panZoomInstance.fit();
+      panZoomInstance.center();
+    });
   </script>
 </body>
 </html>
