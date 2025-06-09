@@ -46,9 +46,8 @@
         vb = svgEl.getAttribute('viewBox');
       }
 
-      // Zoom med Ctrl + mushjul kring muspekaren
+      // Zoom med mushjul kring muspekaren (ingen Ctrl-krav)
       container.addEventListener('wheel', (e) => {
-        if (!e.ctrlKey) return;
         e.preventDefault();
         let [x, y, w, h] = svgEl.getAttribute('viewBox').split(' ').map(Number);
         const factor = e.deltaY < 0 ? 0.9 : 1.1;
