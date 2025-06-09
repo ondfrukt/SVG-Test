@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SVG-test med dynamisk viewBox-zoom</title>
+  <title>SVG-test med dynamisk viewBox-zoom och pan</title>
   <style>
-    html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
-    #svg-container { width: 100%; height: 100%; overflow: hidden; }
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+    #svg-container { width: 100%; height: 100%; cursor: grab; }
+    #svg-container.grabbing { cursor: grabbing; }
     #svg-container svg { width: 100%; height: 100%; display: block; pointer-events: all; }
   </style>
 </head>
@@ -19,7 +20,6 @@
         const resp = await fetch('diagram.svg');
         if (!resp.ok) throw new Error(resp.status + ' ' + resp.statusText);
         let raw = await resp.text();
-        // Rensa bort XML-prolog och DOCTYPE
         const clean = raw
           .replace(/<\?xml[\s\S]*?\?>\s*/g, '')
           .replace(/<!DOCTYPE[\s\S]*?>\s*/g, '');
@@ -30,23 +30,20 @@
 
       const svgEl = container.querySelector('svg');
       if (!svgEl) return console.error('Ingen SVG hittades');
-      // Ta bort fasta mått
       svgEl.removeAttribute('width');
       svgEl.removeAttribute('height');
       svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
 
-      // Initiera viewBox
       if (!svgEl.getAttribute('viewBox')) {
         const { width, height } = svgEl.getBBox();
         svgEl.setAttribute('viewBox', `0 0 ${width} ${height}`);
       }
 
-      // Global wheel-listener zoom utan Ctrl-krav
+      // Zoom med mushjul utan Ctrl
       window.addEventListener('wheel', e => {
-        // Zooma bara om musen är över SVG-container
         if (!container.contains(e.target)) return;
         e.preventDefault();
-        const [x, y, w, h] = svgEl.getAttribute('viewBox').split(' ').map(Number);
+        let [x, y, w, h] = svgEl.getAttribute('viewBox').split(' ').map(Number);
         const factor = e.deltaY < 0 ? 0.9 : 1.1;
         const newW = w * factor;
         const newH = h * factor;
@@ -59,6 +56,43 @@
         const ny = cy - py * newH;
         svgEl.setAttribute('viewBox', `${nx} ${ny} ${newW} ${newH}`);
       }, { passive: false });
+
+      // Pan med scroll-hjulsklick
+      let isPanning = false;
+      let start = { x: 0, y: 0, vbX: 0, vbY: 0, vbW: 0, vbH: 0 };
+      container.addEventListener('mousedown', e => {
+        if (e.button !== 1) return; // bara scrollhjulet
+        e.preventDefault();
+        isPanning = true;
+        container.classList.add('grabbing');
+        const rect = svgEl.getBoundingClientRect();
+        const [x, y, w, h] = svgEl.getAttribute('viewBox').split(' ').map(Number);
+        start = { 
+          x: e.clientX,
+          y: e.clientY,
+          vbX: x,
+          vbY: y,
+          vbW: w,
+          vbH: h,
+          rect
+        };
+      });
+      window.addEventListener('mousemove', e => {
+        if (!isPanning) return;
+        e.preventDefault();
+        const dx = ((e.clientX - start.x) / start.rect.width) * start.vbW;
+        const dy = ((e.clientY - start.y) / start.rect.height) * start.vbH;
+        svgEl.setAttribute('viewBox', `${start.vbX - dx} ${start.vbY - dy} ${start.vbW} ${start.vbH}`);
+      });
+      window.addEventListener('mouseup', e => {
+        if (e.button !== 1) return;
+        isPanning = false;
+        container.classList.remove('grabbing');
+      });
+      // Hindra auto-scroll på mellanklick
+      container.addEventListener('auxclick', e => {
+        if (e.button === 1) e.preventDefault();
+      });
     })();
   </script>
 </body>
