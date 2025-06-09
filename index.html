@@ -2,270 +2,42 @@
 <html lang="sv">
 <head>
   <meta charset="UTF-8">
-  <title>SVG‐Zoom & Pan (Zoom mot markör och drag‐pan)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SVG-test</title>
   <style>
-    /* Grundläggande styling för layout */
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 20px;
+    /* Nollställ marginaler och fyll hela fönstret */
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
     }
-    h1 {
-      margin-bottom: 0;
-    }
-    #controls {
-      display: flex;
-      gap: 10px;
-    }
-    button {
-      padding: 8px 12px;
-      font-size: 14px;
-      cursor: pointer;
-      border: 1px solid #555;
-      background-color: #eee;
-      border-radius: 4px;
-      transition: background-color 0.2s;
-    }
-    button:hover {
-      background-color: #ddd;
-    }
-
-    /* Större SVG‐container */
+    /* Wrapper för objektet */
     #svg-container {
-      border: 1px solid #ccc;
-      width: 800px;
-      height: 600px;
-      overflow: hidden; /* döljer allt utanför ramen */
+      width: 100%;
+      height: 100%;
       display: flex;
       justify-content: center;
       align-items: center;
-      background-color: white;
-      cursor: grab; /* visa “dra‐markör” som utgångspunkt */
-      position: relative; /* för att eventuella overlay‐element ska fungera */
     }
-    #svg-container:active {
-      cursor: grabbing; /* när man håller ned musknappen */
-    }
-    /* SVG:en får anpassa sig efter container, men zoom/pan styrs av viewBox */
-    #svg-container svg {
+    /* Objektet görs normalt storlek (auto) men får maxstorlek av föräldern */
+    object {
+      width: auto;
+      height: auto;
       max-width: 100%;
       max-height: 100%;
-      user-select: none; /* hindrar markering av element när du drar */
-      -webkit-user-drag: none; /* hindrar webkit från att dra bilden */
+      display: block;
     }
   </style>
 </head>
 <body>
-
-  <h1>SVG‐Zoom & Pan</h1>
-  <p>
-    Diagrammet är en extern SVG‐fil (<code>diagram.svg</code>) som laddas in “inline”. 
-    Du kan panorera (klicka & dra) och zooma (mushjul) mot muspekaren.– Testa gärna!
-  </p>
-
-  <!-- ---------- Zoom‐knappar (samma som tidigare) ---------- -->
-  <div id="controls">
-    <button id="zoom‐in">Zooma In (+)</button>
-    <button id="zoom‐out">Zooma Ut (−)</button>
-    <button id="reset">Återställ Zoom & Pan</button>
-  </div>
-
-  <!-- ---------- Behållare för SVG:n ---------- -->
   <div id="svg-container">
-    <!-- SVG‐koden kommer att infogas här av JavaScript -->
+    <object
+      type="image/svg+xml"
+      data="diagram.svg"
+      aria-label="SVG-diagram">
+      Din webbläsare stödjer inte SVG.
+    </object>
   </div>
-
-  <!-- ---------- JavaScript för inläsning, zoom mot musmarkör och pan ---------- -->
-  <script>
-    // ---------- 1. Ladda in extern SVG som “inline” i DOM ----------
-    async function loadSVGInline(url, containerId) {
-      try {
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error('Kunde inte hämta SVG: ' + response.status + ' ' + response.statusText);
-        }
-        const svgText = await response.text();
-        document.getElementById(containerId).innerHTML = svgText;
-        const svgElement = document.getElementById(containerId).querySelector('svg');
-        if (!svgElement) {
-          console.warn('Ingen <svg> hittades i det infogade innehållet.');
-        }
-        return svgElement;
-      } catch (err) {
-        console.error(err);
-        return null;
-      }
-    }
-
-    // ---------- 2. Hjälpfunktioner för viewBox (läs, sätt, beräkna) ----------
-    function parseViewBox(svgEl) {
-      const vb = svgEl.getAttribute('viewBox');
-      if (!vb) {
-        console.warn('SVG saknar viewBox. Kan ej zooma/pan:a korrekt.');
-        return null;
-      }
-      return vb.trim().split(/\s+|,/).map(Number); // [minX, minY, width, height]
-    }
-
-    function setViewBox(svgEl, vbArray) {
-      svgEl.setAttribute('viewBox', vbArray.join(' '));
-    }
-
-    // ---------- 3. Zoom-funktion som sker mot musmarkör ----------
-    function zoomAtPoint(svgEl, factor, pointerSVGx, pointerSVGy) {
-      // Läser aktuell viewBox
-      const vb = parseViewBox(svgEl);
-      if (!vb) return;
-      let [minX, minY, vbWidth, vbHeight] = vb;
-
-      // Beräkna nya width/height
-      const newWidth = vbWidth / factor;
-      const newHeight = vbHeight / factor;
-
-      // Beräkna skillnad i storlek
-      const dx = (pointerSVGx - minX) * (1 - 1 / factor);
-      const dy = (pointerSVGy - minY) * (1 - 1 / factor);
-
-      // Nya minX, minY så att zoom sker mot musmarkörens SVG-koordinat
-      const newMinX = minX + dx;
-      const newMinY = minY + dy;
-
-      setViewBox(svgEl, [newMinX, newMinY, newWidth, newHeight]);
-    }
-
-    // ---------- 4. Pan-funktion: justerar viewBox baserat på drag ----------
-    function pan(svgEl, startVB, deltaSVGx, deltaSVGy) {
-      // startVB: ursprungliga [minX, minY, width, height] innan drag startade
-      if (!startVB) return;
-      const [startMinX, startMinY, vbWidth, vbHeight] = startVB;
-      // Nya minX/minY är helt enkelt start minus delta
-      const newMinX = startMinX - deltaSVGx;
-      const newMinY = startMinY - deltaSVGy;
-      setViewBox(svgEl, [newMinX, newMinY, vbWidth, vbHeight]);
-    }
-
-    // ---------- 5. Konvertera skärmpunkt (px) till SVG‐koordinat (viewBox‐koordinat) ----------
-    function screenToSVGCoords(svgEl, clientX, clientY) {
-      // Få bounding box för SVG i skärmen (px)
-      const pt = svgEl.getBoundingClientRect();
-      const vb = parseViewBox(svgEl);
-      if (!vb) return null;
-      const [minX, minY, vbWidth, vbHeight] = vb;
-      const svgWidthPx = pt.width;
-      const svgHeightPx = pt.height;
-
-      // Relativa positioner inom SVG‐elementet (0–1)
-      const relX = (clientX - pt.left) / svgWidthPx;
-      const relY = (clientY - pt.top) / svgHeightPx;
-
-      // Motsvarande i viewBox‐koordinat:
-      const svgCoordX = minX + relX * vbWidth;
-      const svgCoordY = minY + relY * vbHeight;
-      return { x: svgCoordX, y: svgCoordY };
-    }
-
-    // ---------- 6. Huvudlogik: Körs när sidan har laddat färdigt ----------
-    window.addEventListener('DOMContentLoaded', async () => {
-      const svgUrl = 'diagram.svg';       // Din SVG-fil
-      const containerId = 'svg-container';
-
-      // 6.1 Ladda in SVG “inline”
-      const svgEl = await loadSVGInline(svgUrl, containerId);
-      if (!svgEl) {
-        console.error('Misslyckades med att ladda SVG.');
-        return;
-      }
-
-      // 6.2 Läs av ursprunglig viewBox (för reset)
-      const originalViewBox = parseViewBox(svgEl);
-      if (!originalViewBox) {
-        console.error('Inget viewBox funnet; kan ej återställa zoom/pan.');
-      }
-
-      // 6.3 Zoom‐knappar (fungerar som tidigare, men nu kan vi använda zoomAtPoint mot mitten)
-      document.getElementById('zoom‐in').addEventListener('click', () => {
-        // Hämta mittpunkten i SVG‐elementet (skärmkoordinat)
-        const rect = svgEl.getBoundingClientRect();
-        const midX = rect.left + rect.width / 2;
-        const midY = rect.top + rect.height / 2;
-        const pt = screenToSVGCoords(svgEl, midX, midY);
-        if (!pt) return;
-        zoomAtPoint(svgEl, 1.2, pt.x, pt.y);
-      });
-      document.getElementById('zoom‐out').addEventListener('click', () => {
-        const rect = svgEl.getBoundingClientRect();
-        const midX = rect.left + rect.width / 2;
-        const midY = rect.top + rect.height / 2;
-        const pt = screenToSVGCoords(svgEl, midX, midY);
-        if (!pt) return;
-        zoomAtPoint(svgEl, 0.8, pt.x, pt.y);
-      });
-      document.getElementById('reset').addEventListener('click', () => {
-        if (originalViewBox) {
-          setViewBox(svgEl, originalViewBox);
-        }
-      });
-
-      // ---------- 6.4 Zoom med mushjul (wheel) mot muspekaren ----------
-      const container = document.getElementById(containerId);
-      container.addEventListener('wheel', function(e) {
-        e.preventDefault(); // förhindra att sidan scrollar
-        // Ta reda på muspekaren i SVG‐koordinat
-        const pt = screenToSVGCoords(svgEl, e.clientX, e.clientY);
-        if (!pt) return;
-
-        // Bestäm zoom‐faktor: 
-        //     e.deltaY < 0 → scroll upp → zooma in
-        //     e.deltaY > 0 → scroll ner → zooma ut
-        const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-        zoomAtPoint(svgEl, zoomFactor, pt.x, pt.y);
-      });
-
-      // ---------- 6.5 Pan (dragging) ----------
-      let isPanning = false;
-      let startMouse = { x: 0, y: 0 };      // ursprunglig musposition i skärmkoordinater
-      let startVB = null;                   // viewBox vid drag‐start
-      // När användaren trycker ned musknapp → starta pan
-      container.addEventListener('mousedown', function(e) {
-        e.preventDefault();
-        isPanning = true;
-        // Spara den ursprungliga musens skärmkoordinater
-        startMouse.x = e.clientX;
-        startMouse.y = e.clientY;
-        // Spara den aktuella viewBox som utgångspunkt
-        startVB = parseViewBox(svgEl);
-      });
-      // När användaren släpper musknappen → avsluta pan
-      window.addEventListener('mouseup', function() {
-        isPanning = false;
-      });
-      // När användaren rör musen → uppdatera viewBox om pan pågår
-      window.addEventListener('mousemove', function(e) {
-        if (!isPanning || !startVB) return;
-        // Beräkna delta i skärmkoordinat
-        const dxScreen = e.clientX - startMouse.x;
-        const dyScreen = e.clientY - startMouse.y;
-
-        // Konvertera delta från skärmkoordinat till SVG‐koordinat:
-        const vb = parseViewBox(svgEl);
-        if (!vb) return;
-        const [minX, minY, vbWidth, vbHeight] = vb;
-        const rect = svgEl.getBoundingClientRect();
-        const scaleX = vbWidth / rect.width;
-        const scaleY = vbHeight / rect.height;
-
-        // Hur mycket ska vi flytta i SVG‐koord (positiv deltavärde panar åt “vänster” i déﬁnition):
-        const deltaSVGx = dxScreen * scaleX;
-        const deltaSVGy = dyScreen * scaleY;
-
-        // Applicera pan: 
-        pan(svgEl, startVB, deltaSVGx, deltaSVGy);
-      });
-    });
-  </script>
-
 </body>
 </html>
