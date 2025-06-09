@@ -6,16 +6,8 @@
   <title>SVG-test med dynamisk viewBox-zoom</title>
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
-    #svg-container {
-      width: 100%; height: 100%; overflow: hidden;
-    }
-    /* Gör så att vi kan fokusera och fånga upp wheel */
-    #svg-container { outline: none; }
-    #svg-container svg {
-      width: 100%; height: 100%; display: block;
-      /* Säkerställ att mus-händelser når elementet */
-      pointer-events: all;
-    }
+    #svg-container { width: 100%; height: 100%; overflow: hidden; outline: none; }
+    #svg-container svg { width: 100%; height: 100%; display: block; pointer-events: all; }
   </style>
 </head>
 <body>
@@ -39,6 +31,12 @@
 
       const svgEl = container.querySelector('svg');
       if (!svgEl) return console.error('Ingen SVG hittades');
+      // Ta bort fasta mått så viewBox styr storlek
+      svgEl.removeAttribute('width');
+      svgEl.removeAttribute('height');
+      // Tvinga bevarande av proportioner
+      svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
       // Säkerställ viewBox
       let vb = svgEl.getAttribute('viewBox');
       if (!vb) {
@@ -48,7 +46,7 @@
         vb = svgEl.getAttribute('viewBox');
       }
 
-      // Zoom med Ctrl + mushjul
+      // Zoom med Ctrl + mushjul kring muspekaren
       container.addEventListener('wheel', (e) => {
         if (!e.ctrlKey) return;
         e.preventDefault();
@@ -66,7 +64,7 @@
         svgEl.setAttribute('viewBox', `${nx} ${ny} ${newW} ${newH}`);
       }, { passive: false });
 
-      // Behåll zoom vid resize
+      // Behåll zoom vid resize (CSS hanterar storlek automatisk)
       window.addEventListener('resize', () => {});
       container.focus();
     })();
