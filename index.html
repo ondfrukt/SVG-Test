@@ -9,7 +9,7 @@
     #svg-container { width: 100%; height: 100%; cursor: grab; }
     #svg-container.grabbing { cursor: grabbing; }
     #svg-container svg { width: 100%; height: 100%; display: block; pointer-events: all; user-select: none; }
-    /* Endast tvinga svart färg på text, behåll ursprunglig font-size */
+    /* Endast tvinga svart färg på text */
     #svg-container svg text { fill: #000 !important; }
   </style>
 </head>
@@ -27,20 +27,31 @@
         console.error('Kunde inte ladda SVG:', err);
         return;
       }
-      // Rensa XML-prolog & DOCTYPE
+      // Rensa XML-prolog & DOCTYPE samt ta bort <foreignObject>
       raw = raw
         .replace(/<\?xml[\s\S]*?\?>\s*/g, '')
-        .replace(/<!DOCTYPE[\s\S]*?>\s*/g, '');
-      // Konvertera font-size från px till användarkoordinater så text skalar med viewBox
-      raw = raw
-        .replace(/font-size\s*=\s*"([\d.]+)px"/g, 'font-size="$1"')
-        .replace(/font-size\s*:\s*([\d.]+)px/g, 'font-size:$1');
-      // Ta bort alla <foreignObject> för fallback
-      raw = raw.replace(/<foreignObject[\s\S]*?<\/foreignObject>/g, '');
+        .replace(/<!DOCTYPE[\s\S]*?>\s*/g, '')
+        .replace(/<foreignObject[\s\S]*?<\/foreignObject>/g, '');
       container.innerHTML = raw;
 
       const svgEl = container.querySelector('svg');
       if (!svgEl) { console.error('Ingen SVG hittades'); return; }
+      // Konvertera font-size för alla text- och tspan-element
+      svgEl.querySelectorAll('text, tspan').forEach(el => {
+        // från attribut
+        const fs = el.getAttribute('font-size');
+        if (fs && fs.endsWith('px')) {
+          const num = parseFloat(fs);
+          el.setAttribute('font-size', num);
+        }
+        // från inline style
+        const style = el.getAttribute('style');
+        if (style && style.includes('font-size')) {
+          const newStyle = style.replace(/font-size:\s*([\d.]+)px/g, (m, p1) => `font-size:${p1}`);
+          el.setAttribute('style', newStyle);
+        }
+      });
+
       // Ta bort fasta mått
       svgEl.removeAttribute('width');
       svgEl.removeAttribute('height');
